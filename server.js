@@ -2,6 +2,7 @@ const pg = require('pg');
 const client = new pg.Client(process.env.DATABASE_URL || 'postgres://localhost/acmedb');
 const express = require('express');
 const app = express();
+app.use(express.json());
 
 app.get('/api/employees', async(req, res, next)=> {
     try {
@@ -25,6 +26,21 @@ app.delete('/api/employees/:id', async(req, res, next)=> {
         `;
         await client.query(SQL, [req.params.id]);
         res.sendStatus(204);
+    }
+    catch(ex) {
+        next(ex);
+    }
+});
+
+app.post('/api/employees', async(req, res, next)=> {
+    try {
+        const SQL = `
+            INSERT INTO employees(name, department_id)
+            VALUES($1, $2)
+            RETURNING *
+        `;
+        const response = await client.query(SQL, [req.body.name, req.body.department_id]);
+        res.status(201).send(response.rows[0]);
     }
     catch(ex) {
         next(ex);
@@ -89,9 +105,12 @@ const init = async()=> {
     app.listen(port, ()=> console.log(`listening on port ${port}`));
     
     console.log('some curl commands to test');
-    console.log('curl localhost:8080//api/employees');
-    console.log('curl localhost:8080//api/departments');
-    console.log('curl localhost:8080//api/employees/1 -X DELETE');
+    console.log('curl localhost:8080/api/employees');
+    console.log('curl localhost:8080/api/departments');
+    console.log('curl localhost:8080/api/employees/1 -X DELETE');
+    console.log(`
+        curl localhost:8080/api/employees -X POST -d'{"name": "new employee", "department_id": 1}' -H 'Content-Type/application/json'
+    `);
 };
 
 init();
